@@ -183,5 +183,29 @@ def method0(model, total_param, error_total):
             param.data = float_tensor.view(shape)
     return model
 
+# ECC
+# Input: Error tensor, original tensor
+# Output: Corrected tensor using ecc 64 bits
+
+def ECC(error_tensor, original_tensor):
+    shape = error_tensor.shape
+    error_flatten = error_tensor.view(-1)
+    original_flatten = original_tensor.view(-1)
+    error_bool = error_flatten > 0.0
+    original_bool = original_flatten > 0.0
+    stuck_bits = (error_bool ^ original_bool).float()
+    stuck_bits_64 = stuck_bits.view(int(stuck_bits.numel() / 64), 64)
+    error_64 = error_flatten.view(stuck_bits_64.shape)
+    original_64 = original_flatten.view(stuck_bits_64.shape)
+    sum_64 = torch.sum(stuck_bits_64, dim=1)
+    index = torch.where(sum_64 == 1.)
+    if index[0].shape[0] == 0:
+        return error_tensor
+    else:
+        for i in index:
+            error_64[i, :] = original_64[i, :]
+    correct_tensor = error_64.view(shape)
+    return correct_tensor
+
 if __name__ == "__main__":
     main()

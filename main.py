@@ -3,9 +3,8 @@ import argparse
 import os
 import numpy as np
 
-# Specify GPUs
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import pdb
 
@@ -16,6 +15,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
+import save_weight
 from torchsummary import summary
 
 from models import *
@@ -25,7 +25,8 @@ import makeSA
 
 parser = argparse.ArgumentParser(description="PyTorch CIFAR10 Training")
 parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
-parser.add_argument("--method", default="method0", type=str, help="Running method")
+parser.add_argument("--method", default="method0", type=str, help="Running simulation: \n \
+         method0 for noise injection, method2 for weight mapping and encoding, ECP for ECP simulation")
 parser.add_argument(
     "--resume", "-r", action="store_true", help="resume from checkpoint"
 )
@@ -54,14 +55,14 @@ transform_test = transforms.Compose(
 )
 
 trainset = torchvision.datasets.CIFAR10(
-    root="~/Datasets/cifar10", train=True, download=False, transform=transform_train
+    root="../data.cifar10/", train=True, download=False, transform=transform_train
 )
 trainloader = torch.utils.data.DataLoader(
     trainset, batch_size=500, shuffle=True, num_workers=2
 )
 
 testset = torchvision.datasets.CIFAR10(
-    root="~/Datasets/cifar10", train=False, download=False, transform=transform_test
+    root="../data.cifar10/", train=False, download=False, transform=transform_test
 )
 testloader = torch.utils.data.DataLoader(
     testset, batch_size=100, shuffle=False, num_workers=2
@@ -100,11 +101,6 @@ net = ResNet18()
 state_dict = torch.load("./checkpoint/resnet.pt")['net']
 net = net.to(device)
 net.load_state_dict(state_dict)
-
-# if device == 'cuda':
-#     net = torch.nn.DataParallel(net)
-#     net.load_state_dict(state_dict['net'])
-#     cudnn.benchmark = True
 
 if args.resume:
     # Load checkpoint.
@@ -174,31 +170,17 @@ def test(epoch):
             )
     acc = 100.0 * correct / total
     return acc
-    # Save checkpoint.
-    # acc = 100.*correct/total
-    # if acc > best_acc:
-    #     print('Saving..')
-    #     state = {
-    #         'net': net.state_dict(),
-    #         'acc': acc,
-    #         'epoch': epoch,
-    #     }
-    #     if not os.path.isdir('checkpoint'):
-    #         os.mkdir('checkpoint')
-    #     torch.save(state, './checkpoint/resnet.pt')
-    #     best_acc = acc
 
-# state_error = makeSA.method0(state_dict, "./save_cp/", error_rate=1e-08)
-# net.load_state_dict(state_error)
-# test(0)
-
+##########################################################################
+#                           Run noise injection                          #
+##########################################################################
 if args.method == "method0":
     SAsimulate = makeSA.sa_config(
         testloader,
         net,
         state_dict,
         args.method,
-        writer=True
+        writer=False
     )
     error_range = np.logspace(-10, -1, 100)
     if not os.path.isdir("./save_cp"):
@@ -206,3 +188,36 @@ if args.method == "method0":
         SAsimulate.np_to_cp()
     SAsimulate.run(error_range, 100, test, 0, state_dict, "./save_cp/")
 
+
+##########################################################################
+#                    Run remapping and weight encoding                   #
+##########################################################################
+if args.method == "method2":
+    if not os.path.isdir("./save_map"):
+        os.mkdir("./save_map")
+        save_weight.save_map(state_dict, "./save_map/", device)
+
+    SAsimulate = makeSA.sa_config(
+        testloader,
+        net,
+        state_dict,
+        args.method,
+        writer=False,
+        mapped_float="./save_map/"
+    )
+
+    error_range = np.logspace(-10, -1, 100)
+    SAsimulate.run(error_range, 40, test, 0, state_dict, "./save_cp/")
+
+# ECP error correction pointer simulation
+
+if args.method == "ECP":
+    SAsimulate = makeSA.sa_config(
+        testloader,
+        net,
+        state_dict,
+        args.method,
+        writer=False
+    )
+    error_range = np.logspace(-10, -1, 100)
+    SAsimulate.run(error_range, 40, test, 0, state_dict, "./save_cp/")
