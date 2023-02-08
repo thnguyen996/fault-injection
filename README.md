@@ -1,7 +1,7 @@
 # fault-injection
 This code simulates the impact of emerging memory's stuck-at faults (SAFs) on deep neural networks. It also provides
 different SAF-tolerance methods to increase the robustness of DNNs. Details of the proposed methods are
-described in:  ** [Thai-Hoang Nguyen](https://thaihoang.org), Muhammad Imran, Jaehyuk Choi, Joon-Sung Yang (2021). [Low-Cost and Effective Fault-Tolerance Enhancement Techniques for Emerging Memories-Based Deep Neural Networks.](https://doi.org/10.1109%2Fdac18074.2021.9586112) 2021 58th ACM/IEEE Design Automation Conference (DAC). **
+described in:  <em>[Thai-Hoang Nguyen](https://thaihoang.org), Muhammad Imran, Jaehyuk Choi, Joon-Sung Yang (2021). [Low-Cost and Effective Fault-Tolerance Enhancement Techniques for Emerging Memories-Based Deep Neural Networks.](https://doi.org/10.1109%2Fdac18074.2021.9586112) 2021 58th ACM/IEEE Design Automation Conference (DAC).</em>
 
 ### Requirements
 
